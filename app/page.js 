@@ -5,36 +5,45 @@ import { useEffect, useState } from 'react';
 export default function Home() {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [debug, setDebug] = useState([]);
 
   useEffect(() => {
     const initAndFetch = async () => {
+      const logs = [];
+      logs.push('開始...');
+      
       try {
         const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_KEY
-        );
-
-        console.log('開始抓取資料...');
-        console.log('URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+        
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.NEXT_PUBLIC_SUPABASE_KEY;
+        
+        logs.push(`URL: ${url}`);
+        logs.push(`Key: ${key ? '有值' : 'undefined'}`);
+        
+        const supabase = createClient(url, key);
+        
+        logs.log('查詢 stock_prices...');
         
         const { data, error } = await supabase
           .from('stock_prices')
-          .select('*')
-          .order('timestamp', { ascending: false })
-          .limit(100);
+          .select('*');
 
+        logs.push(`Error: ${error ? error.message : 'null'}`);
+        logs.push(`Data: ${data ? data.length + ' 筆' : 'null'}`);
+        
         if (error) {
-          console.error('Supabase 錯誤:', error);
-          setError(error.message);
-        } else {
-          console.log('抓到資料:', data);
-          setStocks(data || []);
+          logs.push(`詳細錯誤: ${JSON.stringify(error)}`);
         }
+        
+        if (data) {
+          setStocks(data);
+        }
+        
+        setDebug(logs);
       } catch (err) {
-        console.error('其他錯誤:', err);
-        setError(err.message);
+        logs.push(`Exception: ${err.message}`);
+        setDebug(logs);
       }
       setLoading(false);
     };
@@ -43,19 +52,7 @@ export default function Home() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl">載入中...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl text-red-600">錯誤：{error}</div>
-      </div>
-    );
+    return <div className="p-8">載入中...</div>;
   }
 
   return (
@@ -64,6 +61,15 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-gray-800 mb-8">
           📈 台股即時掃描儀表板
         </h1>
+
+        <div className="mb-4">
+          <h2 className="text-xl font-bold mb-2">除錯訊息：</h2>
+          <div className="bg-black text-green-400 p-4 rounded font-mono text-sm">
+            {debug.map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
+          </div>
+        </div>
 
         <div className="mb-4 text-gray-600">
           共 {stocks.length} 檔股票
@@ -78,50 +84,24 @@ export default function Home() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    股票代號
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    名稱
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    收盤價
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    漲跌
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    漲跌幅
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    時間
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">代號</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">名稱</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">股價</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">漲跌</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">漲跌幅</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {stocks.map((stock) => (
                   <tr key={stock.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {stock.symbol}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stock.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stock.close_price}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                      stock.change >= 0 ? 'text-red-600' : 'text-green-600'
-                    }`}>
+                    <td className="px-6 py-4">{stock.symbol}</td>
+                    <td className="px-6 py-4">{stock.name}</td>
+                    <td className="px-6 py-4">{stock.close_price}</td>
+                    <td className={`px-6 py-4 ${stock.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {stock.change >= 0 ? '+' : ''}{stock.change}
                     </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                      stock.change_percent >= 0 ? 'text-red-600' : 'text-green-600'
-                    }`}>
+                    <td className={`px-6 py-4 ${stock.change_percent >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent}%
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(stock.timestamp).toLocaleString('zh-TW')}
                     </td>
                   </tr>
                 ))}
