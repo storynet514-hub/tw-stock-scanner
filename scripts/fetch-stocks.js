@@ -19,7 +19,7 @@ async function fetchAllStocks() {
     const allStocksJson = await allStocksRes.json();
     
     console.log('API 回傳 stat:', allStocksJson.stat);
-    console.log 'API 回傳 type:', allStocksJson.type);
+    console.log('API 回傳 type:', allStocksJson.type);
     
     const allStocks = [];
     
