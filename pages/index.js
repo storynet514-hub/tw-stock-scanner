@@ -27,14 +27,17 @@ export async function getServerSideProps() {
       const json = await res.json();
       
       // API 回傳的最后一筆是最新收盤價
+      // 欄位：[日期, 成交股數, 成交筆數, 成交金額, 開盤, 最高, 最低, 收盤, 漲跌, 交易次數]
+      // 索引：  0      1        2        3        4      5      6      7      8        9
       const lastRow = json.data[json.data.length - 1];
-      const closePrice = lastRow ? lastRow[8] : 'N/A';
+      const closePrice = lastRow ? lastRow[7] : 'N/A'; // 第 8 欄（索引 7）是收盤價
+      const change = lastRow ? lastRow[8] : 'N/A'; // 第 9 欄（索引 8）是漲跌
 
       stocks.push({
         code: stock.code,
         name: stock.name,
         price: closePrice,
-        change: 'N/A',
+        change: change,
       });
     } catch (err) {
       console.error(`Error fetching ${stock.code}:`, err);
