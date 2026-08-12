@@ -18,13 +18,26 @@ export async function getServerSideProps() {
 
   for (const stock of data) {
     try {
-      const url = `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=20260813&stockNo=${stock.code}`;
+      // 使用台交所即時行情 API
+      const url = `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&stockNo=${stock.code}`;
       const res = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0',
         },
       });
       const json = await res.json();
+      
+      // 如果 API 回傳錯誤或沒有資料
+      if (!json.data || json.data.length === 0) {
+        stocks.push({
+          code: stock.code,
+          name: stock.name,
+          price: '無資料',
+          change: '無資料',
+          changePercent: '無資料',
+        });
+        continue;
+      }
       
       const lastRow = json.data[json.data.length - 1];
       const closePrice = lastRow ? parseFloat(lastRow[6].replace(/,/g, '')) : 0;
@@ -44,9 +57,9 @@ export async function getServerSideProps() {
       stocks.push({
         code: stock.code,
         name: stock.name,
-        price: '0.00',
-        change: '0.00',
-        changePercent: '0.00',
+        price: '無資料',
+        change: '無資料',
+        changePercent: '無資料',
       });
     }
   }
@@ -107,11 +120,11 @@ export default function Home({ stocks, updateTime }) {
                 <td style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>
                   {stock.price}
                 </td>
-                <td style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'center', color: stock.change >= 0 ? '#e74c3c' : '#27ae60', fontWeight: 'bold' }}>
-                  {stock.change >= 0 ? '+' : ''}{stock.change}
+                <td style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'center', color: typeof stock.change === 'string' ? '#999' : stock.change >= 0 ? '#e74c3c' : '#27ae60', fontWeight: 'bold' }}>
+                  {typeof stock.change === 'string' ? stock.change : (stock.change >= 0 ? '+' : '') + stock.change}
                 </td>
-                <td style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'center', color: stock.changePercent >= 0 ? '#e74c3c' : '#27ae60', fontWeight: 'bold' }}>
-                  {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent}%
+                <td style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'center', color: typeof stock.changePercent === 'string' ? '#999' : stock.changePercent >= 0 ? '#e74c3c' : '#27ae60', fontWeight: 'bold' }}>
+                  {typeof stock.changePercent === 'string' ? stock.changePercent : (stock.changePercent >= 0 ? '+' : '') + stock.changePercent + '%'}
                 </td>
               </tr>
             ))}
