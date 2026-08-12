@@ -18,24 +18,22 @@ async function fetchAllStocks() {
     });
     const allStocksJson = await allStocksRes.json();
     
-    console.log('API 回傳:', JSON.stringify(allStocksJson, null, 2).substring(0, 500));
-    
     const allStocks = [];
     
-    // 檢查回傳格式
-    if (!allStocksJson.data || !Array.isArray(allStocksJson.data)) {
-      console.error('錯誤：API 回傳格式不對，data 不是陣列');
-      console.error('回傳內容:', allStocksJson);
+    // 檢查回傳格式 - 使用 tables 陣列
+    if (!allStocksJson.tables || !Array.isArray(allStocksJson.tables)) {
+      console.error('錯誤：API 回傳格式不對，tables 不是陣列');
       return;
     }
     
-    for (const category of allStocksJson.data) {
-      if (category && category.type === '上市股票' && category.data && Array.isArray(category.data)) {
-        for (const stock of category.data) {
-          if (stock && stock[0]) {
+    // 尋找包含上市股票的 table
+    for (const table of allStocksJson.tables) {
+      if (table && table.title && table.title.includes('上市股票') && table.data && Array.isArray(table.data)) {
+        for (const row of table.data) {
+          if (row && row[0]) {
             allStocks.push({
-              code: stock[0],
-              name: stock[1] || '',
+              code: row[0],
+              name: row[1] || '',
             });
           }
         }
@@ -45,7 +43,25 @@ async function fetchAllStocks() {
     console.log(`成功抓取 ${allStocks.length} 檔上市股票`);
     
     if (allStocks.length === 0) {
-      console.error('錯誤：沒有抓取到任何股票');
+      console.error('錯誤：沒有抓取到任何股票，嘗試抓取所有 table...');
+      // 備用方案：抓取所有有資料的 table
+      for (const table of allStocksJson.tables) {
+        if (table && table.data && Array.isArray(table.data)) {
+          for (const row of table.data) {
+            if (row && row[0] && /^\d+$/.test(row[0])) {
+              allStocks.push({
+                code: row[0],
+                name: row[1] || '',
+              });
+            }
+          }
+        }
+      }
+      console.log(`備用方案抓取到 ${allStocks.length} 檔股票`);
+    }
+    
+    if (allStocks.length === 0) {
+      console.error('錯誤：仍然沒有抓取到任何股票');
       return;
     }
     
