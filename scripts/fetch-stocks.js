@@ -18,37 +18,23 @@ async function fetchAllStocks() {
     });
     const allStocksJson = await allStocksRes.json();
     
+    console.log('所有 tables:');
+    allStocksJson.tables.forEach((table, index) => {
+      if (table && table.title) {
+        console.log(`Table ${index}: ${table.title}`);
+      }
+    });
+    
     const allStocks = [];
     
-    // 檢查回傳格式 - 使用 tables 陣列
-    if (!allStocksJson.tables || !Array.isArray(allStocksJson.tables)) {
-      console.error('錯誤：API 回傳格式不對，tables 不是陣列');
-      return;
-    }
-    
-    // 尋找包含上市股票的 table
+    // 遍歷所有 tables
     for (const table of allStocksJson.tables) {
-      if (table && table.title && table.title.includes('上市股票') && table.data && Array.isArray(table.data)) {
+      if (table && table.data && Array.isArray(table.data)) {
+        console.log(`處理 table: ${table.title || '未知'}`);
         for (const row of table.data) {
           if (row && row[0]) {
-            allStocks.push({
-              code: row[0],
-              name: row[1] || '',
-            });
-          }
-        }
-      }
-    }
-    
-    console.log(`成功抓取 ${allStocks.length} 檔上市股票`);
-    
-    if (allStocks.length === 0) {
-      console.error('錯誤：沒有抓取到任何股票，嘗試抓取所有 table...');
-      // 備用方案：抓取所有有資料的 table
-      for (const table of allStocksJson.tables) {
-        if (table && table.data && Array.isArray(table.data)) {
-          for (const row of table.data) {
-            if (row && row[0] && /^\d+$/.test(row[0])) {
+            // 檢查是否是股票代號（數字）
+            if (/^\d+$/.test(row[0])) {
               allStocks.push({
                 code: row[0],
                 name: row[1] || '',
@@ -57,60 +43,58 @@ async function fetchAllStocks() {
           }
         }
       }
-      console.log(`備用方案抓取到 ${allStocks.length} 檔股票`);
     }
+    
+    console.log(`成功抓取 ${allStocks.length} 檔股票`);
+    console.log('前 10 檔:', allStocks.slice(0, 10));
     
     if (allStocks.length === 0) {
       console.error('錯誤：仍然沒有抓取到任何股票');
       return;
     }
     
-    // 第二步：並行抓取股價（每 10 檔一組）
+    // 第二步：只抓取前 5 檔測試
     const stocksData = [];
-    const batchSize = 10;
+    const testStocks = allStocks.slice(0, 5);
     
-    for (let i = 0; i < allStocks.length; i += batchSize) {
-      const batch = allStocks.slice(i, i + batchSize);
-      const batchPromises = batch.map(async (stock) => {
-        try {
-          const url = `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&stockNo=${stock.code}`;
-          const res = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0',
-            },
-          });
-          const json = await res.json();
-          
-          if (!json.data || json.data.length === 0) {
-            return null;
-          }
-          
-          const lastRow = json.data[json.data.length - 1];
-          const closePrice = lastRow ? parseFloat(lastRow[6].replace(/,/g, '')) : 0;
-          const change = lastRow ? parseFloat(lastRow[7].replace(/,/g, '')) : 0;
-          const prevClose = closePrice - change;
-          const changePercent = prevClose > 0 ? ((change / prevClose) * 100).toFixed(2) : 0;
-
-          return {
-            symbol: stock.code,
-            name: stock.name,
-            close_price: closePrice,
-            change: change,
-            change_percent: parseFloat(changePercent),
-          };
-        } catch (err) {
-          console.error(`Error fetching ${stock.code}:`, err);
-          return null;
+    console.log('開始抓取股價...');
+    
+    for (const stock of testStocks) {
+      try {
+        const url = `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&stockNo=${stock.code}`;
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0',
+          },
+        });
+        const json = await res.json();
+        
+        console.log(`${stock.code} 回傳:`, json.stat);
+        
+        if (!json.data || json.data.length === 0) {
+          continue;
         }
-      });
-      
-      const batchResults = await Promise.all(batchPromises);
-      stocksData.push(...batchResults.filter(r => r !== null));
-      
-      console.log(`已抓取 ${Math.min(i + batchSize, allStocks.length)} / ${allStocks.length} 檔`);
+        
+        const lastRow = json.data[json.data.length - 1];
+        const closePrice = lastRow ? parseFloat(lastRow[6].replace(/,/g, '')) : 0;
+        const change = lastRow ? parseFloat(lastRow[7].replace(/,/g, '')) : 0;
+        const prevClose = closePrice - change;
+        const changePercent = prevClose > 0 ? ((change / prevClose) * 100).toFixed(2) : 0;
+
+        stocksData.push({
+          symbol: stock.code,
+          name: stock.name,
+          close_price: closePrice,
+          change: change,
+          change_percent: parseFloat(changePercent),
+        });
+      } catch (err) {
+        console.error(`Error fetching ${stock.code}:`, err);
+      }
     }
     
     console.log(`成功抓取 ${stocksData.length} 檔股票資料`);
+    console.log('資料:', stocksData);
     
     // 第三步：寫入 Supabase
     console.log('正在寫入 Supabase...');
