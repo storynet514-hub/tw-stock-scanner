@@ -27,11 +27,15 @@ export async function getServerSideProps() {
       const json = await res.json();
       
       // API 回傳的最后一筆是最新收盤價
-      // 欄位：[日期, 成交股數, 成交筆數, 成交金額, 開盤, 最高, 最低, 收盤, 漲跌, 交易次數]
-      // 索引：  0      1        2        3        4      5      6      7      8        9
       const lastRow = json.data[json.data.length - 1];
-      const closePrice = lastRow ? lastRow[7] : 'N/A'; // 第 8 欄（索引 7）是收盤價
-      const change = lastRow ? lastRow[8] : 'N/A'; // 第 9 欄（索引 8）是漲跌
+      
+      // 印出所有欄位看看
+      console.log(`${stock.code} 欄位:`, lastRow);
+      
+      // 根據實際測試，調整索引
+      // 假設：索引 4=開盤, 5=最高, 6=最低, 7=收盤, 8=漲跌
+      const closePrice = lastRow ? lastRow[7] : 'N/A';
+      const change = lastRow ? lastRow[8] : 'N/A';
 
       stocks.push({
         code: stock.code,
@@ -61,6 +65,7 @@ export default function Home({ stocks, error }) {
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
       <h1>台股即時掃描</h1>
+      <p>請查看 Vercel Functions Logs 看欄位順序</p>
       <table style={{ borderCollapse: 'collapse', width: '100%' }}>
         <thead>
           <tr>
