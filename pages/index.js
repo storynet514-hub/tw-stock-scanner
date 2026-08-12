@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import cheerio from 'cheerio';
 
 export async function getServerSideProps() {
   const dataPath = path.join(process.cwd(), 'data', 'twse.json');
@@ -18,19 +17,24 @@ export async function getServerSideProps() {
 
   for (const stock of data) {
     try {
-      const url = `https://www.twse.com.tw/zh/products/stocks/${stock.code}.html`;
-      const res = await fetch(url);
-      const html = await res.text();
-      const $ = cheerio.load(html);
-
-      const priceText = $('.stock-price').text().trim();
-      const changeText = $('.stock-change').text().trim();
+      // 使用台交所 API（個股）
+      const url = `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=20260813&stockNo=${stock.code}`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+        },
+      });
+      const json = await res.json();
+      
+      // API 回傳的最后一筆是最新收盤價
+      const lastRow = json.data[json.data.length - ];
+      const closePrice = lastRow ? lastRow[8] : 'N/A'; // 第 9 欄是收盤價
 
       stocks.push({
         code: stock.code,
         name: stock.name,
-        price: priceText || 'N/A',
-        change: changeText || 'N/A',
+        price: closePrice,
+        change: 'N/A',
       });
     } catch (err) {
       console.error(`Error fetching ${stock.code}:`, err);
