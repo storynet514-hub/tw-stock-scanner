@@ -6,7 +6,7 @@ export default function Home() {
           📈 台股即時掃描儀表板
         </h1>
         <div className="text-gray-600">
-          請用客戶端渲染
+          訪問 /dashboard 查看股票資料
         </div>
       </div>
     </div>
