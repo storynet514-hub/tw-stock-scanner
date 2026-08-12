@@ -1,0 +1,29 @@
+name: Fetch Stocks
+
+on:
+  schedule:
+    # 每 5 分鐘執行一次（週一到週五，台灣時間 9:00-13:30）
+    - cron: '*/5 1-5 * * 1-5'
+  workflow_dispatch: # 也可以手動觸發
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Fetch stocks
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: node scripts/fetch-stocks.js
