@@ -18,19 +18,36 @@ async function fetchAllStocks() {
     });
     const allStocksJson = await allStocksRes.json();
     
+    console.log('API 回傳:', JSON.stringify(allStocksJson, null, 2).substring(0, 500));
+    
     const allStocks = [];
+    
+    // 檢查回傳格式
+    if (!allStocksJson.data || !Array.isArray(allStocksJson.data)) {
+      console.error('錯誤：API 回傳格式不對，data 不是陣列');
+      console.error('回傳內容:', allStocksJson);
+      return;
+    }
+    
     for (const category of allStocksJson.data) {
-      if (category.type === '上市股票') {
+      if (category && category.type === '上市股票' && category.data && Array.isArray(category.data)) {
         for (const stock of category.data) {
-          allStocks.push({
-            code: stock[0],
-            name: stock[1],
-          });
+          if (stock && stock[0]) {
+            allStocks.push({
+              code: stock[0],
+              name: stock[1] || '',
+            });
+          }
         }
       }
     }
     
     console.log(`成功抓取 ${allStocks.length} 檔上市股票`);
+    
+    if (allStocks.length === 0) {
+      console.error('錯誤：沒有抓取到任何股票');
+      return;
+    }
     
     // 第二步：並行抓取股價（每 10 檔一組）
     const stocksData = [];
@@ -59,11 +76,11 @@ async function fetchAllStocks() {
           const changePercent = prevClose > 0 ? ((change / prevClose) * 100).toFixed(2) : 0;
 
           return {
-            code: stock.code,
+            symbol: stock.code,
             name: stock.name,
-            price: closePrice,
+            close_price: closePrice,
             change: change,
-            changePercent: parseFloat(changePercent),
+            change_percent: parseFloat(changePercent),
           };
         } catch (err) {
           console.error(`Error fetching ${stock.code}:`, err);
@@ -83,10 +100,10 @@ async function fetchAllStocks() {
     console.log('正在寫入 Supabase...');
     
     // 先清空舊資料
-    await supabase.from('stocks').delete().neq('id', 0);
+    await supabase.from('stock_prices').delete().neq('id', 0);
     
     // 寫入新資料
-    const { error } = await supabase.from('stocks').insert(stocksData);
+    const { error } = await supabase.from('stock_prices').insert(stocksData);
     
     if (error) {
       console.error('寫入 Supabase 錯誤:', error);
