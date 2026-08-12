@@ -27,8 +27,8 @@ export async function getServerSideProps() {
       const json = await res.json();
       
       // API 回傳的最后一筆是最新收盤價
-      const lastRow = json.data[json.data.length - ];
-      const closePrice = lastRow ? lastRow[8] : 'N/A'; // 第 9 欄是收盤價
+      const lastRow = json.data[json.data.length - 1];
+      const closePrice = lastRow ? lastRow[8] : 'N/A';
 
       stocks.push({
         code: stock.code,
