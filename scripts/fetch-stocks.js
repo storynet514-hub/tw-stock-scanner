@@ -7,65 +7,49 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function fetchAllStocks() {
   try {
-    console.log('正在抓取所有台股代號...');
+    console.log('正在抓取台股資料...');
     
-    // 使用正確的 API 抓取上市股票列表
-    const allStocksUrl = 'https://www.twse.com.tw/exchangeReport/MI_5MINS_TRADE_INFO?response=json';
-    const allStocksRes = await fetch(allStocksUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-      },
-    });
-    const allStocksJson = await allStocksRes.json();
+    // 直接用已知的股票代號測試
+    const testStocks = [
+      { code: '2330', name: '台積電' },
+      { code: '2317', name: '鴻海' },
+      { code: '2454', name: '聯發科' },
+    ];
     
-    console.log('API 回傳 stat:', allStocksJson.stat);
-    console.log('API 回傳 type:', allStocksJson.type);
-    
-    const allStocks = [];
-    
-    // 檢查回傳格式
-    if (allStocksJson.data && Array.isArray(allStocksJson.data)) {
-      for (const row of allStocksJson.data) {
-        if (row && row[0]) {
-          allStocks.push({
-            code: row[0],
-            name: row[1] || '',
-          });
-        }
-      }
-    }
-    
-    console.log(`成功抓取 ${allStocks.length} 檔股票`);
-    console.log('前 10 檔:', allStocks.slice(0, 10));
-    
-    if (allStocks.length === 0) {
-      console.error('錯誤：沒有抓取到任何股票');
-      return;
-    }
-    
-    // 第二步：只抓取前 5 檔測試
     const stocksData = [];
-    const testStocks = allStocks.slice(0, 5);
-    
-    console.log('開始抓取股價...');
     
     for (const stock of testStocks) {
       try {
         const url = `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&stockNo=${stock.code}`;
+        console.log(`抓取 ${stock.code}...`);
+        
         const res = await fetch(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0',
           },
         });
-        const json = await res.json();
         
-        console.log(`${stock.code} 回傳:`, json.stat);
+        const text = await res.text();
+        console.log(`${stock.code} 回傳前 200 字元:`, text.substring(0, 200));
+        
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          console.error(`${stock.code} JSON 解析失敗:`, e.message);
+          continue;
+        }
+        
+        console.log(`${stock.code} stat:`, json.stat);
         
         if (!json.data || json.data.length === 0) {
+          console.log(`${stock.code} 沒有資料`);
           continue;
         }
         
         const lastRow = json.data[json.data.length - 1];
+        console.log(`${stock.code} 最後一筆:`, lastRow);
+        
         const closePrice = lastRow ? parseFloat(lastRow[6].replace(/,/g, '')) : 0;
         const change = lastRow ? parseFloat(lastRow[7].replace(/,/g, '')) : 0;
         const prevClose = closePrice - change;
@@ -86,13 +70,11 @@ async function fetchAllStocks() {
     console.log(`成功抓取 ${stocksData.length} 檔股票資料`);
     console.log('資料:', stocksData);
     
-    // 第三步：寫入 Supabase
+    // 寫入 Supabase
     console.log('正在寫入 Supabase...');
     
-    // 先清空舊資料
     await supabase.from('stock_prices').delete().neq('id', 0);
     
-    // 寫入新資料
     const { error } = await supabase.from('stock_prices').insert(stocksData);
     
     if (error) {
