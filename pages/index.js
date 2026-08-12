@@ -4,31 +4,53 @@ import cheerio from 'cheerio';
 
 export async function getServerSideProps() {
   const dataPath = path.join(process.cwd(), 'data', 'twse.json');
-  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  
+  let data;
+  try {
+    const fileContent = fs.readFileSync(dataPath, 'utf8');
+    data = JSON.parse(fileContent);
+  } catch (error) {
+    console.error('Error reading data file:', error);
+    return { props: { stocks: [], error: '無法讀取資料檔案' } };
+  }
 
   const stocks = [];
 
   for (const stock of data) {
-    const url = `https://www.twse.com.tw/zh/products/stocks/${stock.code}.html`;
-    const res = await fetch(url);
-    const html = await res.text();
-    const $ = cheerio.load(html);
+    try {
+      const url = `https://www.twse.com.tw/zh/products/stocks/${stock.code}.html`;
+      const res = await fetch(url);
+      const html = await res.text();
+      const $ = cheerio.load(html);
 
-    const priceText = $('.stock-price').text().trim();
-    const changeText = $('.stock-change').text().trim();
+      const priceText = $('.stock-price').text().trim();
+      const changeText = $('.stock-change').text().trim();
 
-    stocks.push({
-      code: stock.code,
-      name: stock.name,
-      price: priceText,
-      change: changeText,
-    });
+      stocks.push({
+        code: stock.code,
+        name: stock.name,
+        price: priceText || 'N/A',
+        change: changeText || 'N/A',
+      });
+    } catch (err) {
+      console.error(`Error fetching ${stock.code}:`, err);
+      stocks.push({
+        code: stock.code,
+        name: stock.name,
+        price: 'Error',
+        change: 'Error',
+      });
+    }
   }
 
-  return { props: { stocks } };
+  return { props: { stocks, error: null } };
 }
 
-export default function Home({ stocks }) {
+export default function Home({ stocks, error }) {
+  if (error) {
+    return <div style={{ padding: '20px' }}>錯誤：{error}</div>;
+  }
+
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
       <h1>台股即時掃描</h1>
