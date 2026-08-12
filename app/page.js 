@@ -5,54 +5,52 @@ import { useEffect, useState } from 'react';
 export default function Home() {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [debug, setDebug] = useState([]);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const initAndFetch = async () => {
-      const logs = [];
-      logs.push('開始...');
-      
       try {
         const { createClient } = await import('@supabase/supabase-js');
         
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const key = process.env.NEXT_PUBLIC_SUPABASE_KEY;
         
-        logs.push(`URL: ${url}`);
-        logs.push(`Key: ${key ? '有值' : 'undefined'}`);
+        if (!url || !key) {
+          console.error('缺少環境變數');
+          setLoading(false);
+          return;
+        }
         
         const supabase = createClient(url, key);
-        
-        logs.log('查詢 stock_prices...');
         
         const { data, error } = await supabase
           .from('stock_prices')
           .select('*');
 
-        logs.push(`Error: ${error ? error.message : 'null'}`);
-        logs.push(`Data: ${data ? data.length + ' 筆' : 'null'}`);
-        
         if (error) {
-          logs.push(`詳細錯誤: ${JSON.stringify(error)}`);
+          console.error('Supabase 錯誤:', error);
+        } else if (isMounted) {
+          setStocks(data || []);
         }
-        
-        if (data) {
-          setStocks(data);
-        }
-        
-        setDebug(logs);
       } catch (err) {
-        logs.push(`Exception: ${err.message}`);
-        setDebug(logs);
+        console.error('錯誤:', err);
       }
-      setLoading(false);
+      
+      if (isMounted) {
+        setLoading(false);
+      }
     };
 
     initAndFetch();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) {
-    return <div className="p-8">載入中...</div>;
+    return <div className="p-8 text-center">載入中...</div>;
   }
 
   return (
@@ -61,15 +59,6 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-gray-800 mb-8">
           📈 台股即時掃描儀表板
         </h1>
-
-        <div className="mb-4">
-          <h2 className="text-xl font-bold mb-2">除錯訊息：</h2>
-          <div className="bg-black text-green-400 p-4 rounded font-mono text-sm">
-            {debug.map((line, i) => (
-              <div key={i}>{line}</div>
-            ))}
-          </div>
-        </div>
 
         <div className="mb-4 text-gray-600">
           共 {stocks.length} 檔股票
