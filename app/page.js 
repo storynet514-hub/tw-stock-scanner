@@ -1,103 +1,13 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-
 export default function Home() {
-  const [stocks, setStocks] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const initAndFetch = async () => {
-      try {
-        const { createClient } = await import('@supabase/supabase-js');
-        
-        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const key = process.env.NEXT_PUBLIC_SUPABASE_KEY;
-        
-        if (!url || !key) {
-          console.error('缺少環境變數');
-          setLoading(false);
-          return;
-        }
-        
-        const supabase = createClient(url, key);
-        
-        const { data, error } = await supabase
-          .from('stock_prices')
-          .select('*');
-
-        if (error) {
-          console.error('Supabase 錯誤:', error);
-        } else if (isMounted) {
-          setStocks(data || []);
-        }
-      } catch (err) {
-        console.error('錯誤:', err);
-      }
-      
-      if (isMounted) {
-        setLoading(false);
-      }
-    };
-
-    initAndFetch();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (loading) {
-    return <div className="p-8 text-center">載入中...</div>;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">
           📈 台股即時掃描儀表板
         </h1>
-
-        <div className="mb-4 text-gray-600">
-          共 {stocks.length} 檔股票
+        <div className="text-gray-600">
+          請用客戶端渲染
         </div>
-
-        {stocks.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            找不到符合的股票
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">代號</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">名稱</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">股價</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">漲跌</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">漲跌幅</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {stocks.map((stock) => (
-                  <tr key={stock.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">{stock.symbol}</td>
-                    <td className="px-6 py-4">{stock.name}</td>
-                    <td className="px-6 py-4">{stock.close_price}</td>
-                    <td className={`px-6 py-4 ${stock.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {stock.change >= 0 ? '+' : ''}{stock.change}
-                    </td>
-                    <td className={`px-6 py-4 ${stock.change_percent >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );
